@@ -3,7 +3,7 @@ var router = express.Router();
 const userModel = require("./users");
 const passport = require("passport");
 const localStrategy = require("passport-local");
-
+const upload = require('./multer');
 passport.use(new localStrategy(userModel.authenticate()));
 
 
@@ -11,10 +11,18 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
-router.get('/profile',isLoggedIn, function(req, res, next) {
-  res.render("profile");
+router.get('/fileupload',isLoggedIn, upload.single("Image"),async function(req, res, next) {
+ const user = await userModel.findOne({username : req.session.passport.user})
+ user.profileImage = req.file.filename;
+ await user.save();
+ res.redirect("/profile");
 });
 
+router.get('/profile',isLoggedIn, async function(req, res, next) {
+  const user = await userModel.findOne({username : req.session.passport.user})
+
+  res.render("profile",{user});
+});
 
 router.get('/register', function(req, res, next) {
   res.render("register");
@@ -34,6 +42,13 @@ router.post('/register', function(req, res, next) {
   })
 });
 
+function isLoggedIn(req,res,next){
+  if(req.isAuthenticated()){
+    return next();
+  }
+  redirect('/');
+}
+
 router.get('/login',passport.authenticate("local",{
   successRedirect:"/profile",
   failureRedirect:"/"
@@ -48,11 +63,6 @@ router.get('/logout',function(req,res,next){
   })
 })
 
-function isLoggedIn(req,res,next){
-  if(req.isAuthenticated()){
-    return next();
-  }
-  redirect('/');
-}
+
 
 module.exports = router;
